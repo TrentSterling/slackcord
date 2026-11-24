@@ -1,0 +1,47 @@
+name: Publish community
+on:
+  push:
+    branches: [main]
+  discussion:
+  discussion_comment:
+  workflow_dispatch:
+  schedule:
+    - cron: '23 */6 * * *'
+
+concurrency:
+  group: community-pages
+  cancel-in-progress: false
+
+permissions: {}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      discussions: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: main
+          persist-credentials: false
+      - name: Render public discussions
+        run: node scripts/build.mjs
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: dist
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.pages.outputs.page_url }}
+    steps:
+      - name: Deploy
+        id: pages
+        uses: actions/deploy-pages@v5
