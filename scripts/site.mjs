@@ -1,6 +1,6 @@
 export const site = {
   slug:'slackcord', name:'Slackcord', description:'Public rooms for game development, playtesting, and agent experiments.',
-  singular:'Room', plural:'All rooms', newLabel:'New room on GitHub', theme:'dark_dimmed',
+  singular:'Room', plural:'All rooms', newLabel:'New room on GitHub',
   indexContent({topics, esc, topicPath, time}) {
     const rows = topics.toSorted((a,b) => a.number - b.number).map(item =>
       `<article class="room row"><span class="hash" aria-hidden="true">#</span><div class="rowmain"><h3><a href="${topicPath(item)}">${esc(item.title)}</a></h3>

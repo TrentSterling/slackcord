@@ -1,9 +1,9 @@
 import { createHash } from 'node:crypto';
-import { mkdirSync, writeFileSync, cpSync, readdirSync, rmSync } from 'node:fs';
+import { mkdirSync, writeFileSync, cpSync, readdirSync, readFileSync, rmSync } from 'node:fs';
 import { discussions } from './discussions.mjs';
 import { site } from './site.mjs';
 
-const {slug, name, description, singular, plural, newLabel, indexContent, theme} = site;
+const {slug, name, description, singular, plural, newLabel, indexContent} = site;
 const repository = `TrentSterling/${slug}`;
 const github = `https://github.com/${repository}/discussions`;
 const base = `https://tront.xyz/${slug}/`;
@@ -24,6 +24,12 @@ const sourceLink = item => {
   try { const url = new URL(first); return /^(https?:)$/.test(url.protocol) ? url : null; } catch { return null; }
 };
 const newTopic = `${github}/new?category=general`;
+function versionedAsset(filename) {
+  const digest = createHash('sha256').update(readFileSync(`public/${filename}`)).digest('hex').slice(0, 12);
+  return `${filename}?v=${digest}`;
+}
+const themeScript = versionedAsset('theme.js');
+const stylesheet = versionedAsset('site.css');
 function layout({root, title, path='', content, scripts=''}) {
   const nav = [['forum','Forum'], ['reddit','Reddit'], ['slackcord','Slackcord']].map(([key,label]) =>
     `<a href="/${key}/"${key === slug ? ' aria-current="location"' : ''}>${label}</a>`).join('');
@@ -31,8 +37,10 @@ function layout({root, title, path='', content, scripts=''}) {
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${esc(title)} · tront.xyz</title><meta name="description" content="${esc(description)}">
 <link rel="canonical" href="${base}${path}"><link rel="alternate" type="application/json" href="${path ? 'data.json' : 'feed.json'}">
-<link rel="stylesheet" href="${root}site.css"><script type="module" src="${root}site.js"></script></head>
-<body class="${slug}"><a class="skip" href="#content">Skip to content</a><header><div class="bar"><a class="brand" href="/"><span class="mark" aria-hidden="true">t</span> tront.xyz</a><nav aria-label="Communities">${nav}</nav></div></header>
+<meta name="color-scheme" content="light dark"><script src="${root}${themeScript}"></script>
+<link rel="stylesheet" href="${root}${stylesheet}"><script type="module" src="${root}site.js"></script></head>
+<body class="${slug}"><a class="skip" href="#content">Skip to content</a><header><div class="bar"><a class="brand" href="/"><span class="mark" aria-hidden="true">t</span> tront.xyz</a><nav aria-label="Communities">${nav}</nav>
+<label class="theme-picker" hidden>Theme <select id="theme"><option value="system">System</option><option value="dark">Dark</option><option value="light">Light</option></select></label></div></header>
 <main id="content">${content}</main><footer><a href="${root}">${esc(name)}</a><span><a href="${root}feed.json">JSON feed</a><a href="${github}">GitHub Discussions</a></span></footer>${scripts}</body></html>`;
 }
 function write(path, contents) {
@@ -72,10 +80,10 @@ for (const item of topics) {
   const archive = `<div id="archive" data-revision="${revision}"><h2>${slug === 'slackcord' ? 'Messages' : 'Replies'} <small>${item.count}</small></h2>
     ${rendered || `<p class="empty">${slug === 'slackcord' ? 'This room is open. Send the first message.' : 'Be the first to reply.'}</p>`}</div>`;
   const reply = slug === 'slackcord' ? 'Send a message' : 'Reply';
-  const compose = embed && !item.locked ? `<section class="compose"><h2>${reply}</h2><div class="giscus"></div>
-    <script src="https://giscus.app/client.js" data-repo="${repository}" data-repo-id="${esc(repoId)}" data-category="${esc(item.category.name)}"
+  const compose = embed && !item.locked ? `<section class="compose"><h2>${reply}</h2>
+    <div class="giscus" data-repo="${repository}" data-repo-id="${esc(repoId)}" data-category="${esc(item.category.name)}"
     data-category-id="${esc(item.category.id)}" data-mapping="number" data-term="${item.number}" data-reactions-enabled="1"
-    data-input-position="top" data-theme="${theme}" data-lang="en" crossorigin="anonymous" async></script></section>` : '';
+    data-input-position="top" data-lang="en"></div></section>` : '';
   const archiveArea = embed ? `<details><summary>Read the published archive</summary>${archive}</details>` : archive;
   const controls = `<div class="actions"><a class="action" href="${esc(item.url)}${item.locked ? '' : '#new_comment_field'}">${item.locked ? 'View locked discussion' : reply + ' on GitHub'} ↗</a>
     ${slug === 'reddit' ? `<a href="${esc(item.url)}">Upvote on GitHub · ${item.upvoteCount}</a>` : ''}</div>`;
