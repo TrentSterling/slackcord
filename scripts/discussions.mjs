@@ -3,7 +3,8 @@ import { execFileSync } from 'node:child_process';
 const pageFields = 'pageInfo { hasNextPage endCursor }';
 const messageFields = 'id author { login } body createdAt url isMinimized';
 const discussionFields = `id number title body createdAt updatedAt url upvoteCount locked author { login }
-  category { id name slug } comments { totalCount }`;
+  category { id name slug } comments { totalCount }
+  likes: reactions(content:THUMBS_UP) { totalCount }`;
 
 function query(document, variables) {
   const input = JSON.stringify({query: document, variables});
@@ -38,15 +39,18 @@ function messages(id, type, field) {
 export function discussions(owner, name) {
   const document = `query($owner:String!,$name:String!,$cursor:String) {
     repository(owner:$owner,name:$name) {
-      id discussions(first:100,after:$cursor,orderBy:{field:CREATED_AT,direction:ASC}) {
+      id discussionCategories(first:25) { nodes { id name slug } }
+      discussions(first:100,after:$cursor,orderBy:{field:CREATED_AT,direction:ASC}) {
         nodes { ${discussionFields} } ${pageFields}
       }
     }
   }`;
   let repoId;
+  let categories;
   const topics = pages(cursor => {
     const repo = query(document, {owner, name, cursor}).repository;
     repoId = repo.id;
+    categories = repo.discussionCategories.nodes;
     return repo.discussions;
   });
   for (const topic of topics) {
@@ -56,5 +60,5 @@ export function discussions(owner, name) {
     }
     topic.count = topic.messages.reduce((n, comment) => n + 1 + comment.replies.length, 0);
   }
-  return {repoId, topics};
+  return {repoId, topics, categories};
 }
